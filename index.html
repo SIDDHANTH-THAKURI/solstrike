@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SOLSTRIKE — Arena FPS</title>
+    <meta name="description" content="SOLSTRIKE: a fast, crisp arena FPS. Clear 13 rounds against the Spectre squad across sunlit arenas." />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><circle cx=%2250%22 cy=%2250%22 r=%2240%22 fill=%22%23ff7a1a%22/><circle cx=%2250%22 cy=%2250%22 r=%2216%22 fill=%22%23fff6e8%22/></svg>" />
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <canvas id="game-canvas"></canvas>
+
+    <div id="ui">
+      <!-- ============ MAIN MENU ============ -->
+      <section id="screen-menu" class="screen" hidden>
+        <div class="menu-wrap">
+          <div class="logo-block">
+            <div class="logo-sun"></div>
+            <h1 class="logo-title">SOL<span>STRIKE</span></h1>
+            <p class="logo-sub">FAST TACTICAL ARENA &middot; MAN VS MACHINE</p>
+          </div>
+          <nav class="menu-buttons">
+            <button id="btn-play" class="btn btn-primary btn-big">PLAY</button>
+            <button id="btn-howto" class="btn">HOW TO PLAY</button>
+            <button id="btn-settings" class="btn">SETTINGS</button>
+          </nav>
+          <p class="menu-footnote">Best on desktop with a mouse &middot; runs fully offline &middot; v1.0</p>
+        </div>
+      </section>
+
+      <!-- ============ MATCH SETUP ============ -->
+      <section id="screen-setup" class="screen" hidden>
+        <div class="panel panel-wide">
+          <h2 class="panel-title">MISSION SETUP</h2>
+
+          <p class="group-label">ARENA</p>
+          <div class="map-grid">
+            <button class="map-card" data-map="bazaar">
+              <span class="map-thumb thumb-bazaar"></span>
+              <span class="map-name">BAZAAR</span>
+              <span class="map-desc">Sunlit market lanes, tight corners</span>
+            </button>
+            <button class="map-card" data-map="frosthold">
+              <span class="map-thumb thumb-frosthold"></span>
+              <span class="map-name">FROSTHOLD</span>
+              <span class="map-desc">Bright snow port, long sightlines</span>
+            </button>
+            <button class="map-card" data-map="mesa">
+              <span class="map-thumb thumb-mesa"></span>
+              <span class="map-name">MESA</span>
+              <span class="map-desc">Red canyon town, vertical fights</span>
+            </button>
+            <button class="map-card" data-map="random">
+              <span class="map-thumb thumb-random"></span>
+              <span class="map-name">RANDOM</span>
+              <span class="map-desc">Surprise me — fresh layout every match</span>
+            </button>
+          </div>
+
+          <p class="group-label">DIFFICULTY</p>
+          <div class="seg" id="difficulty-seg">
+            <button class="seg-item" data-diff="casual">CASUAL</button>
+            <button class="seg-item" data-diff="standard">STANDARD</button>
+            <button class="seg-item" data-diff="elite">ELITE</button>
+          </div>
+
+          <div class="panel-actions">
+            <button id="btn-setup-back" class="btn">BACK</button>
+            <button id="btn-start-match" class="btn btn-primary btn-big">START MATCH</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ HOW TO PLAY ============ -->
+      <section id="screen-howto" class="screen" hidden>
+        <div class="panel panel-wide">
+          <h2 class="panel-title">HOW TO PLAY</h2>
+          <div class="howto-cols">
+            <div class="howto-col">
+              <h3>CONTROLS</h3>
+              <ul class="keys-list">
+                <li><span class="key-combo"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span> Move</li>
+                <li><span class="key-combo"><kbd>Mouse</kbd></span> Aim &middot; <span class="key-combo"><kbd>LMB</kbd></span> Fire</li>
+                <li><span class="key-combo"><kbd>RMB</kbd></span> Aim down sights / scope</li>
+                <li><span class="key-combo"><kbd>Shift</kbd></span> Walk (silent, accurate)</li>
+                <li><span class="key-combo"><kbd>Ctrl</kbd></span> Crouch &middot; <span class="key-combo"><kbd>Space</kbd></span> Jump</li>
+                <li><span class="key-combo"><kbd>R</kbd></span> Reload &middot; <span class="key-combo"><kbd>Q</kbd></span> Last weapon</li>
+                <li><span class="key-combo"><kbd>1</kbd>–<kbd>5</kbd> / <kbd>Wheel</kbd> / <kbd>V</kbd></span> Switch weapon</li>
+                <li><span class="key-combo"><kbd>X</kbd></span> ☀ SUNBURST ultimate (charge it with kills)</li>
+                <li><span class="key-combo"><kbd>Tab</kbd></span> Match stats &middot; <span class="key-combo"><kbd>Esc</kbd></span> Pause</li>
+                <li class="howto-cv">Hands-free: 😮 fire &middot; 🙂 smile = switch weapon &middot; 😗 kiss = SUNBURST &middot; 🤨 brows = reload</li>
+              </ul>
+            </div>
+            <div class="howto-col">
+              <h3>THE MISSION</h3>
+              <ul class="tips-list">
+                <li>Clear <b>13 rounds</b> of Spectre bots. Each round sends a bigger, sharper squad.</li>
+                <li><b>Headshots</b> deal heavy bonus damage. Aim head-height at corners.</li>
+                <li>Standing still or walking makes your first shots <b>laser accurate</b> — stop, then shoot.</li>
+                <li>Grab <b>medkits</b> and <b>ammo crates</b> around the arena; they respawn.</li>
+                <li>Rounds cleared fast with high accuracy raise your <b>end rank</b> — chase the S.</li>
+                <li>The <b>OGRE</b> rocket launcher hits everything near the blast — including you. Jump with it if you dare.</li>
+                <li>Kills fill the ☀ <b>SUNBURST</b> meter. When it blazes, press <b>X</b> to call an orbital strike where you're aiming — bots under roofs survive it.</li>
+              </ul>
+            </div>
+          </div>
+          <div class="panel-actions">
+            <button id="btn-howto-back" class="btn btn-primary">GOT IT</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ SETTINGS ============ -->
+      <section id="screen-settings" class="screen" hidden>
+        <div class="panel panel-wide">
+          <h2 class="panel-title">SETTINGS</h2>
+          <div class="settings-cols">
+            <div class="settings-col">
+              <h3>MOUSE &amp; VIEW</h3>
+              <label class="setting-row">
+                <span>Sensitivity <em id="val-sens">1.00</em></span>
+                <input type="range" id="set-sens" min="0.1" max="3" step="0.05" />
+              </label>
+              <label class="setting-row">
+                <span>ADS sensitivity <em id="val-adssens">0.80</em></span>
+                <input type="range" id="set-adssens" min="0.3" max="1.5" step="0.05" />
+              </label>
+              <label class="setting-row">
+                <span>Field of view <em id="val-fov">95</em></span>
+                <input type="range" id="set-fov" min="70" max="110" step="1" />
+              </label>
+              <label class="setting-row setting-toggle">
+                <span>View bob</span>
+                <input type="checkbox" id="set-bob" />
+              </label>
+              <label class="setting-row setting-toggle">
+                <span>Damage numbers</span>
+                <input type="checkbox" id="set-dmgnum" />
+              </label>
+
+              <h3>QUALITY</h3>
+              <div class="seg seg-small" id="quality-seg">
+                <button class="seg-item" data-q="auto">AUTO</button>
+                <button class="seg-item" data-q="high">HIGH</button>
+                <button class="seg-item" data-q="medium">MED</button>
+                <button class="seg-item" data-q="low">LOW</button>
+              </div>
+              <label class="setting-row setting-toggle">
+                <span>Show FPS</span>
+                <input type="checkbox" id="set-fps" />
+              </label>
+
+              <h3>HANDS-FREE (WEBCAM)</h3>
+              <label class="setting-row setting-toggle">
+                <span>Head &amp; face control</span>
+                <input type="checkbox" id="set-cv" />
+              </label>
+              <label class="setting-row">
+                <span>Head sensitivity <em id="val-headsens">1.00</em></span>
+                <input type="range" id="set-headsens" min="0.4" max="2.5" step="0.05" />
+              </label>
+              <p class="cv-hint">Turn head to look &middot; lean to move &middot; open mouth to fire &middot; raise brows to reload &middot; N recenters</p>
+            </div>
+            <div class="settings-col">
+              <h3>AUDIO</h3>
+              <label class="setting-row">
+                <span>Master volume <em id="val-master">80</em></span>
+                <input type="range" id="set-master" min="0" max="100" step="1" />
+              </label>
+              <label class="setting-row">
+                <span>Effects <em id="val-sfx">100</em></span>
+                <input type="range" id="set-sfx" min="0" max="100" step="1" />
+              </label>
+              <label class="setting-row">
+                <span>Music <em id="val-music">55</em></span>
+                <input type="range" id="set-music" min="0" max="100" step="1" />
+              </label>
+
+              <h3>CROSSHAIR</h3>
+              <div class="crosshair-preview-row">
+                <div id="crosshair-preview"><i class="chp-l"></i><i class="chp-r"></i><i class="chp-t"></i><i class="chp-b"></i><i class="chp-dot"></i></div>
+                <div class="swatches" id="crosshair-swatches">
+                  <button class="swatch" data-c="#2dd4bf" style="--c:#2dd4bf"></button>
+                  <button class="swatch" data-c="#4ade80" style="--c:#4ade80"></button>
+                  <button class="swatch" data-c="#ffffff" style="--c:#ffffff"></button>
+                  <button class="swatch" data-c="#f472b6" style="--c:#f472b6"></button>
+                  <button class="swatch" data-c="#facc15" style="--c:#facc15"></button>
+                  <button class="swatch" data-c="#ff7a1a" style="--c:#ff7a1a"></button>
+                </div>
+              </div>
+              <label class="setting-row">
+                <span>Length <em id="val-chsize">6</em></span>
+                <input type="range" id="set-chsize" min="2" max="14" step="1" />
+              </label>
+              <label class="setting-row">
+                <span>Gap <em id="val-chgap">3</em></span>
+                <input type="range" id="set-chgap" min="0" max="10" step="1" />
+              </label>
+              <label class="setting-row setting-toggle">
+                <span>Center dot</span>
+                <input type="checkbox" id="set-chdot" />
+              </label>
+            </div>
+          </div>
+          <div class="panel-actions">
+            <button id="btn-settings-back" class="btn btn-primary">DONE</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ PAUSE ============ -->
+      <section id="screen-pause" class="screen screen-veil" hidden>
+        <div class="panel">
+          <h2 class="panel-title">PAUSED</h2>
+          <p class="pause-sub" id="pause-progress">Round 1 of 13</p>
+          <nav class="menu-buttons">
+            <button id="btn-resume" class="btn btn-primary btn-big">RESUME</button>
+            <button id="btn-pause-settings" class="btn">SETTINGS</button>
+            <button id="btn-quit" class="btn btn-danger-soft">QUIT TO MENU</button>
+          </nav>
+        </div>
+      </section>
+
+      <!-- ============ END SCREEN ============ -->
+      <section id="screen-end" class="screen screen-veil" hidden>
+        <div class="panel panel-end">
+          <p class="end-kicker" id="end-kicker">MISSION COMPLETE</p>
+          <h2 class="end-title" id="end-title">VICTORY</h2>
+          <div class="rank-badge" id="rank-badge" hidden><span id="rank-letter">S</span><em>RANK</em></div>
+          <div class="stats-grid" id="end-stats"></div>
+          <div class="panel-actions">
+            <button id="btn-menu-return" class="btn">MENU</button>
+            <button id="btn-rematch" class="btn btn-primary btn-big">PLAY AGAIN</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ HANDS-FREE CAMERA PREVIEW ============ -->
+      <div id="cv-panel" hidden>
+        <video id="cv-video" autoplay playsinline muted></video>
+        <div id="cv-status">OFF</div>
+      </div>
+
+      <!-- ============ HUD ============ -->
+      <div id="hud" hidden>
+        <div id="crosshair"><i class="ch-l"></i><i class="ch-r"></i><i class="ch-t"></i><i class="ch-b"></i><i class="ch-dot"></i></div>
+        <div id="hitmarker"><i></i><i></i><i></i><i></i></div>
+
+        <div id="hud-top">
+          <div class="hud-pill" id="pill-round">ROUND <b id="hud-round">1</b><span class="pill-dim">/13</span></div>
+          <div class="hud-pill hud-pill-accent" id="pill-enemies"><span class="enemy-ico"></span><b id="hud-enemies">0</b></div>
+          <div class="hud-pill" id="pill-timer"><b id="hud-timer">0:00</b></div>
+        </div>
+
+        <div id="killfeed"></div>
+        <div id="announcer" hidden><p id="announce-main"></p><p id="announce-sub"></p></div>
+
+        <div id="hud-bl">
+          <div class="hp-block">
+            <div class="hp-num" id="hud-hp">100</div>
+            <div class="bars">
+              <div class="bar bar-hp"><i id="bar-hp"></i></div>
+              <div class="bar bar-shield"><i id="bar-shield"></i></div>
+            </div>
+          </div>
+        </div>
+
+        <div id="hud-br">
+          <div id="weapon-rail"></div>
+          <div class="ammo-block">
+            <div class="weapon-name" id="hud-weapon">HAVOC</div>
+            <div class="ammo-nums"><b id="hud-mag">25</b><span id="hud-reserve">/ 75</span></div>
+          </div>
+        </div>
+
+        <div id="ult-meter" title="SUNBURST — press X when full">
+          <svg viewBox="0 0 64 64">
+            <circle class="ult-track" cx="32" cy="32" r="27"/>
+            <circle id="ult-ring" cx="32" cy="32" r="27"/>
+          </svg>
+          <span id="ult-sun">☀</span>
+          <b id="ult-key">X</b>
+        </div>
+
+        <div id="dmg-arcs"></div>
+        <div id="dmg-numbers"></div>
+        <div id="vignette-hurt"></div>
+        <div id="vignette-low"></div>
+        <div id="screen-flash"></div>
+        <div id="scope-overlay" hidden><div class="scope-ring"></div><div class="scope-line scope-h"></div><div class="scope-line scope-v"></div></div>
+        <div id="pickup-toast" hidden></div>
+        <div id="fps-badge" hidden>60</div>
+
+        <div id="scoreboard" hidden>
+          <h3>MATCH STATS</h3>
+          <div class="stats-grid" id="live-stats"></div>
+        </div>
+      </div>
+
+      <!-- ============ SHARED OVERLAYS ============ -->
+      <div id="busy" hidden><div class="spinner"></div><p id="busy-text">Building arena…</p></div>
+      <div id="fade"></div>
+      <div id="fatal" hidden>
+        <div class="panel"><h2 class="panel-title">CAN'T START</h2><p id="fatal-msg">WebGL unavailable.</p></div>
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
