@@ -42,7 +42,29 @@ class InputManager {
     document.addEventListener("keydown", (e) => {
       // keep browser shortcuts working when not in game
       if (this.locked) {
-        if (e.code === "Tab" || e.code === "Space" || e.code === "Slash" || e.code === "Quote") e.preventDefault();
+        // block the combos game keys collide with: Ctrl/Shift are held as
+        // crouch/walk modifiers, so almost any Ctrl+/Shift+key the player
+        // fires alongside them would otherwise trigger a browser shortcut
+        // (new tab, close tab, devtools, find, view-source, print, ...).
+        if (
+          e.code === "Tab" ||
+          e.code === "Space" ||
+          e.code === "Slash" ||
+          e.code === "Quote" ||
+          e.key === "Control" ||
+          e.key === "Shift" ||
+          e.ctrlKey ||
+          e.shiftKey ||
+          e.altKey ||
+          e.metaKey ||
+          e.code === "F5" ||
+          e.code === "F6" ||
+          e.code === "F11" ||
+          e.code === "F12" ||
+          e.code === "Backspace"
+        ) {
+          e.preventDefault();
+        }
       }
       if (e.repeat) return;
       this.keys.add(e.code);
@@ -106,6 +128,12 @@ class InputManager {
     }
     if (this.locked) return true;
     try {
+      // fullscreen + pointer-lock together makes Chrome/Edge suppress almost
+      // all in-browser keyboard shortcuts (new tab, close tab, devtools,
+      // find, ...) while playing. Best-effort: ignore if blocked/unsupported.
+      if (document.fullscreenElement == null && document.documentElement.requestFullscreen) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      }
       // unadjustedMovement = raw input, no OS acceleration (Valorant feel)
       const p = this.canvas.requestPointerLock({ unadjustedMovement: true });
       if (p && p.catch) {
@@ -132,6 +160,7 @@ class InputManager {
       return;
     }
     if (document.pointerLockElement) document.exitPointerLock();
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
   }
 
   // test-drive helpers (used by the automated smoke suite)
