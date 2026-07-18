@@ -10,6 +10,8 @@ import { buildMap } from "./world/mapgen.js";
 import { HUD } from "./ui/hud.js";
 import { Menus } from "./ui/menus.js";
 import { Session } from "./game/session.js";
+import { MpSession } from "./game/mpsession.js";
+import { NetClient, defaultServerUrl } from "./net/net.js";
 import { vision } from "./core/vision.js";
 
 const canvas = document.getElementById("game-canvas");
@@ -82,6 +84,11 @@ function startMatch(map, difficulty) {
 }
 
 function quitToMenu() {
+  if (net) {
+    const n = net;
+    net = null;
+    n.close(); // close() clears onClose first — no disconnect flow on purpose-quit
+  }
   if (session) {
     session.dispose();
     session = null;
@@ -95,6 +102,105 @@ function quitToMenu() {
   audio.startMusic("menu");
 }
 
+// ------------------------------------------------------------ multiplayer
+
+let net = null;
+
+function connectMp(firstMsg) {
+  audio.ensure();
+  menus.busy("Connecting…");
+  if (net) {
+    net.close();
+    net = null;
+  }
+  const n = new NetClient(defaultServerUrl());
+  net = n;
+  const timeout = setTimeout(() => {
+    if (net !== n || n.open) return;
+    net = null;
+    n.close();
+    menus.busy(null);
+    menus.mpError("Could not reach the server. Check the address under ADVANCED · SERVER.");
+    if (menus.current !== "mp") menus.show("mp");
+  }, 8000);
+  n.onOpen = () => n.send(firstMsg);
+  n.onClose = () => {
+    clearTimeout(timeout);
+    if (net !== n) return;
+    net = null;
+    const wasInMatch = !!session?.mp;
+    if (session?.mp) {
+      session.dispose();
+      session = null;
+      paused = false;
+      input.releaseLock();
+      hud.hide();
+      buildAttract();
+    }
+    menus.busy(null);
+    menus.show("mp");
+    menus.mpError(wasInMatch ? "Connection lost — you left the room." : "Connection failed. Is the server running?");
+    audio.stopMusic();
+    audio.startMusic("menu");
+  };
+  n.on("err", (m) => {
+    menus.busy(null);
+    if (menus.current !== "mp") menus.show("mp");
+    menus.mpError(m.m);
+  });
+  n.on("joined", (m) => {
+    clearTimeout(timeout);
+    startMpMatch(m);
+  });
+  n.on("restart", (m) => {
+    if (net === n && session?.mp) startMpMatch({ map: m.map, seed: m.seed, room: session.roomCode, scores: m.scores });
+  });
+}
+
+function startMpMatch(joinMsg) {
+  menus.busy("Building arena…");
+  menus.hideAll();
+  audio.stopMusic();
+
+  requestAnimationFrame(() => {
+    disposeAttract();
+    if (session) {
+      session.dispose();
+      session = null;
+    }
+    session = new MpSession(engine, hud, {
+      net,
+      map: joinMsg.map,
+      seed: joinMsg.seed,
+      roomCode: joinMsg.room,
+      scores: joinMsg.scores,
+      onEnd: (result) => {
+        paused = false;
+        hud.hide();
+        menus.showEnd(result);
+        audio.startMusic("menu");
+      },
+    });
+    paused = false;
+    menus.busy(null);
+    input.requestLock();
+    // pointer lock needs recent user activation; on auto-restarts there is
+    // none, so fall back to the pause screen ("RESUME" click provides it)
+    setTimeout(() => {
+      if (session?.mp && !input.locked && session.state !== "over") {
+        paused = true;
+        session.setPaused(true);
+        menus.setPauseProgress(mpPauseText());
+        menus.show("pause");
+      }
+    }, 450);
+  });
+}
+
+function mpPauseText() {
+  return `ROOM ${session.roomCode} · ${session.stats.kills} KILLS · MATCH RUNS WHILE PAUSED`;
+}
+
 const menus = new Menus({
   onStart: (map, diff) => startMatch(map, diff),
   onResume: async () => {
@@ -102,6 +208,8 @@ const menus = new Menus({
   },
   onQuit: () => quitToMenu(),
   onRematch: () => startMatch(lastMatchOpts.map, lastMatchOpts.difficulty),
+  onMpCreate: (name, map) => connectMp({ t: "create", name, map }),
+  onMpJoin: (name, code) => connectMp({ t: "join", name, room: code }),
 });
 
 // pause on pointer-lock loss mid-match
@@ -115,7 +223,7 @@ input.onLockChange((locked) => {
   } else {
     paused = true;
     session.setPaused(true);
-    menus.setPauseProgress(`ROUND ${session.round} OF 13 · ${session.stats.kills} KILLS`);
+    menus.setPauseProgress(session.mp ? mpPauseText() : `ROUND ${session.round} OF 13 · ${session.stats.kills} KILLS`);
     menus.show("pause");
   }
 });
@@ -228,8 +336,13 @@ window.__SOL = {
   get session() {
     return session;
   },
+  get net() {
+    return net;
+  },
   startMatch,
   quitToMenu,
+  mpCreate: (name, map) => connectMp({ t: "create", name, map: map || "random" }),
+  mpJoin: (name, code) => connectMp({ t: "join", name, room: code }),
   settings,
   setSetting,
 };

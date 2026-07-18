@@ -12,9 +12,9 @@ import { WebSocketServer } from "ws";
 const PORT = process.env.PORT || 8081;
 const DIST = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "dist");
 const TICK_MS = 50; // 20 Hz snapshots
-const KILL_TARGET = 20;
-const RESPAWN_S = 3;
-const RESTART_S = 9;
+const KILL_TARGET = +process.env.KILL_TARGET || 20; // env override for tests
+const RESPAWN_S = +process.env.RESPAWN_S || 3;
+const RESTART_S = +process.env.RESTART_S || 9;
 const MAX_ROOM = 8;
 
 // per-weapon max damage a single hit report may claim (headshot included)
@@ -151,7 +151,7 @@ function applyHit(room, shooter, msg) {
 
   if (target.hp <= 0) {
     target.deaths++;
-    shooter.kills++;
+    if (shooter.id !== target.id) shooter.kills++; // no kill credit for suicide
     broadcast(room, {
       t: "die", id: target.id, by: shooter.id, part: msg.part || "body",
       w: msg.w, scores: roster(room),

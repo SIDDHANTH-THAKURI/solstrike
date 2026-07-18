@@ -7,7 +7,7 @@ import { formatTime } from "../core/utils.js";
 
 const $ = (id) => document.getElementById(id);
 
-const SCREENS = ["menu", "setup", "howto", "settings", "pause", "end"];
+const SCREENS = ["menu", "setup", "mp", "howto", "settings", "pause", "end"];
 
 export class Menus {
   constructor(cbs) {
@@ -20,6 +20,7 @@ export class Menus {
     this._bindNav();
     this._bindSettings();
     this._bindSelections();
+    this._bindMultiplayer();
     this._bindSounds();
   }
 
@@ -53,6 +54,8 @@ export class Menus {
 
   _bindNav() {
     $("btn-play").addEventListener("click", () => this.show("setup"));
+    $("btn-mp").addEventListener("click", () => this.show("mp"));
+    $("btn-mp-back").addEventListener("click", () => this.show("menu"));
     $("btn-howto").addEventListener("click", () => this.show("howto"));
     $("btn-howto-back").addEventListener("click", () => this.show("menu"));
     $("btn-settings").addEventListener("click", () => {
@@ -76,7 +79,62 @@ export class Menus {
     $("pause-progress").textContent = text;
   }
 
+  // ---------------------------------------------------------- multiplayer
+
+  _bindMultiplayer() {
+    const name = $("mp-name");
+    const code = $("mp-code");
+    const server = $("mp-server");
+    name.value = localStorage.getItem("sol-name") || "";
+    server.value = localStorage.getItem("sol-server") || "";
+    name.addEventListener("input", () => localStorage.setItem("sol-name", name.value.toUpperCase().slice(0, 14)));
+    server.addEventListener("change", () => {
+      const v = server.value.trim();
+      if (v) localStorage.setItem("sol-server", v);
+      else localStorage.removeItem("sol-server");
+    });
+
+    const seg = $("mp-map-seg");
+    this._mpMap = "random";
+    const applyMapSeg = () => {
+      for (const b of seg.children) b.classList.toggle("selected", b.dataset.map === this._mpMap);
+    };
+    applyMapSeg();
+    seg.addEventListener("click", (e) => {
+      const m = e.target.dataset?.map;
+      if (!m) return;
+      this._mpMap = m;
+      applyMapSeg();
+    });
+
+    const getName = () => (name.value.trim().toUpperCase() || "OPERATOR").slice(0, 14);
+    $("btn-mp-create").addEventListener("click", () => {
+      this.mpError(null);
+      this.cbs.onMpCreate(getName(), this._mpMap);
+    });
+    const join = () => {
+      const c = code.value.trim().toUpperCase();
+      if (c.length !== 5) return this.mpError("Room codes are 5 letters — check with your host.");
+      this.mpError(null);
+      this.cbs.onMpJoin(getName(), c);
+    };
+    $("btn-mp-join").addEventListener("click", join);
+    code.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") join();
+    });
+  }
+
+  mpError(msg) {
+    const el = $("mp-error");
+    el.hidden = !msg;
+    if (msg) el.textContent = msg;
+  }
+
   showEnd(result) {
+    if (result.mp) return this._showMpEnd(result);
+    $("end-mp-board").hidden = true;
+    $("end-mp-note").hidden = true;
+    $("btn-rematch").hidden = false;
     const s = result.stats;
     $("end-kicker").textContent = result.victory
       ? result.map + " · MISSION COMPLETE"
@@ -100,6 +158,42 @@ export class Menus {
     $("end-stats").innerHTML = cells
       .map(([v, l]) => `<div class="stat-cell"><b>${v}</b><span>${l}</span></div>`)
       .join("");
+    this.show("end");
+  }
+
+  _showMpEnd(result) {
+    const s = result.stats;
+    $("end-kicker").textContent = "ROOM " + result.roomCode + " · DEATHMATCH";
+    const title = $("end-title");
+    title.textContent = result.victory ? "VICTORY" : result.winnerName + " WINS";
+    title.classList.toggle("defeat", !result.victory);
+    $("rank-badge").hidden = true;
+
+    const acc = s.shots > 0 ? Math.round((s.hits / s.shots) * 100) : 0;
+    const cells = [
+      [s.kills, "KILLS"],
+      [s.deaths, "DEATHS"],
+      [s.headshots, "HEADSHOTS"],
+      [acc + "%", "ACCURACY"],
+      [s.bestStreak + "x", "BEST STREAK"],
+      [formatTime(result.time), "TIME"],
+    ];
+    $("end-stats").innerHTML = cells
+      .map(([v, l]) => `<div class="stat-cell"><b>${v}</b><span>${l}</span></div>`)
+      .join("");
+
+    const esc = (t) => String(t).replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" }[c]));
+    const rows = [...result.scores].sort((a, b) => b.kills - a.kills || a.deaths - b.deaths);
+    const board = $("end-mp-board");
+    board.innerHTML = rows
+      .map(
+        (r) =>
+          `<div class="mp-score-row${r.id === result.myId ? " me" : ""}"><span class="mp-name">${esc(r.name)}${r.id === result.myId ? " (YOU)" : ""}</span><b>${r.kills}</b><em>${r.deaths}</em></div>`
+      )
+      .join("");
+    board.hidden = false;
+    $("end-mp-note").hidden = false;
+    $("btn-rematch").hidden = true; // next match auto-starts server-side
     this.show("end");
   }
 

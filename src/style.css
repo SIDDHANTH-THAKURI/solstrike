@@ -651,3 +651,61 @@ input[type="checkbox"]:checked::after { left: 22px; }
   line-height: 1.5;
   color: var(--ink-soft);
 }
+
+/* ---------------- multiplayer ---------------- */
+.mp-input {
+  width: 100%; max-width: 340px; display: block;
+  background: rgba(255, 255, 255, 0.9); border: 2px solid var(--line);
+  border-radius: 12px; padding: 11px 14px;
+  font: inherit; font-size: 15px; font-weight: 700; letter-spacing: 0.08em;
+  color: var(--ink); outline: none; text-transform: uppercase;
+}
+.mp-input:focus { border-color: var(--accent); }
+.mp-input::placeholder { color: var(--ink-soft); opacity: 0.55; }
+.mp-code { letter-spacing: 0.45em; font-size: 19px; text-align: center; max-width: 210px; }
+
+#screen-mp .panel { max-height: 92vh; overflow-y: auto; }
+.mp-cols { display: flex; gap: 22px; margin-top: 20px; flex-wrap: wrap; }
+.mp-col {
+  flex: 1 1 300px; min-width: 0; background: var(--paper-2); border-radius: var(--radius);
+  padding: 18px 20px 20px;
+}
+.mp-col .seg { flex-wrap: wrap; }
+.mp-col h3 { font-size: 13px; letter-spacing: 0.26em; font-weight: 900; color: var(--ink); }
+.mp-col .btn { margin-top: 16px; width: 100%; }
+.mp-hint { font-size: 12px; color: var(--ink-soft); margin-top: 6px; line-height: 1.5; }
+
+.mp-error {
+  margin-top: 14px; font-size: 13px; font-weight: 800; letter-spacing: 0.06em;
+  color: var(--bad); background: rgba(229, 72, 77, 0.09);
+  border: 1.5px solid rgba(229, 72, 77, 0.35); border-radius: 10px; padding: 9px 13px;
+}
+
+.mp-advanced { margin-top: 16px; }
+.mp-advanced summary {
+  font-size: 11px; font-weight: 800; letter-spacing: 0.24em;
+  color: var(--ink-soft); cursor: pointer; list-style: none;
+}
+.mp-advanced summary::before { content: "▸ "; }
+.mp-advanced[open] summary::before { content: "▾ "; }
+.mp-advanced .mp-input { margin-top: 10px; text-transform: none; font-weight: 600; letter-spacing: 0.02em; }
+
+/* room scoreboard rows (Tab overlay + end screen) */
+#live-stats .mp-score-head, #live-stats .mp-score-row { grid-column: 1 / -1; }
+.mp-board { margin-top: 14px; }
+.mp-score-head {
+  font-size: 11px; font-weight: 900; letter-spacing: 0.24em;
+  color: var(--ink-soft); margin-bottom: 8px;
+}
+.mp-score-row {
+  display: flex; align-items: center; gap: 12px;
+  background: rgba(255, 255, 255, 0.72); border: 1.5px solid var(--line);
+  border-radius: 10px; padding: 8px 14px; margin-top: 6px;
+  font-size: 14px; font-weight: 700;
+}
+.mp-score-row.me { border-color: var(--accent); background: rgba(255, 122, 26, 0.08); }
+.mp-score-row .mp-name { flex: 1; letter-spacing: 0.08em; }
+.mp-score-row b { color: var(--ink); min-width: 34px; text-align: right; }
+.mp-score-row b::after { content: " K"; font-size: 10px; color: var(--ink-soft); }
+.mp-score-row em { font-style: normal; color: var(--ink-soft); min-width: 34px; text-align: right; }
+.mp-score-row em::after { content: " D"; font-size: 10px; }

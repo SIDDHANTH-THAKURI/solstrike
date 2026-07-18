@@ -22,6 +22,7 @@
           </div>
           <nav class="menu-buttons">
             <button id="btn-play" class="btn btn-primary btn-big">PLAY</button>
+            <button id="btn-mp" class="btn btn-big">MULTIPLAYER</button>
             <button id="btn-howto" class="btn">HOW TO PLAY</button>
             <button id="btn-settings" class="btn">SETTINGS</button>
           </nav>
@@ -68,6 +69,49 @@
           <div class="panel-actions">
             <button id="btn-setup-back" class="btn">BACK</button>
             <button id="btn-start-match" class="btn btn-primary btn-big">START MATCH</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ MULTIPLAYER ============ -->
+      <section id="screen-mp" class="screen" hidden>
+        <div class="panel panel-wide">
+          <h2 class="panel-title">MULTIPLAYER &middot; DEATHMATCH</h2>
+          <p class="group-label">CALLSIGN</p>
+          <input id="mp-name" class="mp-input" type="text" maxlength="14" spellcheck="false" autocomplete="off" placeholder="OPERATOR" />
+
+          <div class="mp-cols">
+            <div class="mp-col">
+              <h3>HOST A ROOM</h3>
+              <p class="mp-hint">First to 20 kills &middot; up to 8 players &middot; share the room code</p>
+              <p class="group-label">ARENA</p>
+              <div class="seg" id="mp-map-seg">
+                <button class="seg-item" data-map="random">RANDOM</button>
+                <button class="seg-item" data-map="bazaar">BAZAAR</button>
+                <button class="seg-item" data-map="frosthold">FROSTHOLD</button>
+                <button class="seg-item" data-map="mesa">MESA</button>
+              </div>
+              <button id="btn-mp-create" class="btn btn-primary btn-big">CREATE ROOM</button>
+            </div>
+            <div class="mp-col">
+              <h3>JOIN A ROOM</h3>
+              <p class="mp-hint">Enter the 5-letter code from your host</p>
+              <p class="group-label">ROOM CODE</p>
+              <input id="mp-code" class="mp-input mp-code" type="text" maxlength="5" spellcheck="false" autocomplete="off" placeholder="ABCDE" />
+              <button id="btn-mp-join" class="btn btn-primary btn-big">JOIN ROOM</button>
+            </div>
+          </div>
+
+          <p id="mp-error" class="mp-error" hidden></p>
+
+          <details class="mp-advanced">
+            <summary>ADVANCED &middot; SERVER</summary>
+            <input id="mp-server" class="mp-input" type="text" spellcheck="false" autocomplete="off" placeholder="ws://host:8081" />
+            <p class="mp-hint">Leave as-is unless you host the server elsewhere. Blank = default.</p>
+          </details>
+
+          <div class="panel-actions">
+            <button id="btn-mp-back" class="btn">BACK</button>
           </div>
         </div>
       </section>
@@ -229,6 +273,8 @@
           <h2 class="end-title" id="end-title">VICTORY</h2>
           <div class="rank-badge" id="rank-badge" hidden><span id="rank-letter">S</span><em>RANK</em></div>
           <div class="stats-grid" id="end-stats"></div>
+          <div class="mp-board" id="end-mp-board" hidden></div>
+          <p class="mp-hint" id="end-mp-note" hidden>NEXT MATCH STARTS AUTOMATICALLY &mdash; STAY ON THIS SCREEN</p>
           <div class="panel-actions">
             <button id="btn-menu-return" class="btn">MENU</button>
             <button id="btn-rematch" class="btn btn-primary btn-big">PLAY AGAIN</button>
