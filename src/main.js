@@ -153,7 +153,7 @@ function connectMp(firstMsg) {
     startMpMatch(m);
   });
   n.on("restart", (m) => {
-    if (net === n && session?.mp) startMpMatch({ map: m.map, seed: m.seed, room: session.roomCode, scores: m.scores });
+    if (net === n && session?.mp) startMpMatch({ map: m.map, seed: m.seed, room: session.roomCode, scores: m.scores, spawn: m.spawns?.[n.id] });
   });
 }
 
@@ -174,6 +174,7 @@ function startMpMatch(joinMsg) {
       seed: joinMsg.seed,
       roomCode: joinMsg.room,
       scores: joinMsg.scores,
+      spawn: joinMsg.spawn,
       onEnd: (result) => {
         paused = false;
         hud.hide();

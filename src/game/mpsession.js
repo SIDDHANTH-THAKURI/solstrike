@@ -42,7 +42,10 @@ export class MpSession {
     engine.configureLight(this.map.lights.dir);
 
     this.player = new PlayerController(this.map.statics, this.map.half);
-    this.player.reset(this.map.playerSpawn.x, this.map.playerSpawn.z, this.map.playerSpawn.yaw);
+    // server assigns a spawn spread away from other players; snap it to
+    // walkable ground (server doesn't know map geometry)
+    const sp = opts.spawn ? this._openSpot(opts.spawn.x, opts.spawn.z) : this.map.playerSpawn;
+    this.player.reset(sp.x, sp.z, opts.spawn ? opts.spawn.yaw : this.map.playerSpawn.yaw);
     this.camFeel = new CameraFeel(this.camera);
 
     this.effects = new Effects(this.scene);

@@ -103,6 +103,27 @@ function makeNameSprite(name, color) {
   return sp;
 }
 
+// shared suit materials (skipped by deepDispose via userData.shared)
+let _suitMat = null, _suitDarkMat = null, _shellMat = null, _visorMat = null;
+function avatarMats() {
+  if (!_suitMat) {
+    _suitMat = new THREE.MeshLambertMaterial({ color: "#57616e" });
+    _suitDarkMat = new THREE.MeshLambertMaterial({ color: "#333b46" });
+    _shellMat = new THREE.MeshLambertMaterial({ color: "#e9edf2" });
+    _visorMat = new THREE.MeshBasicMaterial({ color: "#141a22" });
+    for (const m of [_suitMat, _suitDarkMat, _shellMat, _visorMat]) m.userData.shared = true;
+  }
+  return { suit: _suitMat, dark: _suitDarkMat, shell: _shellMat, visor: _visorMat };
+}
+
+function part(parent, geo, mat, x, y, z) {
+  const m = new THREE.Mesh(geo, mat);
+  m.position.set(x, y, z);
+  m.castShadow = true;
+  parent.add(m);
+  return m;
+}
+
 class RemoteAvatar {
   constructor(scene, id, name) {
     this.id = id;
@@ -119,28 +140,90 @@ class RemoteAvatar {
     this.cfg = { accent: PALETTE[id % PALETTE.length] };
     this.buf = []; // snapshot ring: {t,x,y,z,yaw,pitch,cr,anim}
     this._walkPhase = 0;
+    this._moveK = 0; // damped 0..1 walk-cycle weight
+    this._t = Math.random() * 10; // idle-breath phase offset per player
 
+    const { suit, dark, shell, visor } = avatarMats();
     const accent = new THREE.MeshLambertMaterial({ color: this.cfg.accent });
-    const dark = new THREE.MeshLambertMaterial({ color: "#3d4654" });
-    const skin = new THREE.MeshLambertMaterial({ color: "#c9a17c" });
+    const glow = new THREE.MeshBasicMaterial({ color: this.cfg.accent });
     const g = new THREE.Group();
-    this.legL = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.78, 0.2), dark);
-    this.legL.position.set(-0.11, 0.39, 0);
-    this.legR = this.legL.clone();
-    this.legR.position.x = 0.11;
-    this.torso = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.62, 0.3), accent);
-    this.torso.position.y = 1.09;
-    this.head = new THREE.Mesh(new THREE.SphereGeometry(0.17, 10, 8), skin);
-    this.head.position.y = 1.62;
-    const visor = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.09, 0.1), dark);
-    visor.position.set(0, 0.02, -0.14);
-    this.head.add(visor);
-    this.gun = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.1, 0.62), new THREE.MeshLambertMaterial({ color: "#242a33" }));
-    this.gun.position.set(0.22, 1.32, -0.26);
+
+    // legs pivot at the hip so the swing reads like a stride, not a shear
+    const buildLeg = (sx) => {
+      const hip = new THREE.Group();
+      hip.position.set(sx, 0.9, 0);
+      part(hip, new THREE.CapsuleGeometry(0.08, 0.6, 4, 10), suit, 0, -0.34, 0);
+      part(hip, new THREE.SphereGeometry(0.075, 10, 8), shell, 0, -0.36, -0.045); // knee pad
+      part(hip, new THREE.BoxGeometry(0.15, 0.1, 0.25), dark, 0, -0.85, -0.04);
+      g.add(hip);
+      return hip;
+    };
+    this.legL = buildLeg(-0.115);
+    this.legR = buildLeg(0.115);
+
+    // everything above the hips sinks together on crouch
+    const up = new THREE.Group();
+    g.add(up);
+    this.upper = up;
+
+    part(up, new THREE.CylinderGeometry(0.16, 0.175, 0.18, 12), dark, 0, 0.98, 0);
+    part(up, new THREE.CylinderGeometry(0.175, 0.175, 0.05, 12), accent, 0, 1.05, 0); // belt
+    const chest = part(up, new THREE.CapsuleGeometry(0.205, 0.3, 4, 12), accent, 0, 1.22, 0);
+    chest.scale.z = 0.78;
+    // chest core light (front is -Z)
+    const core = part(up, new THREE.CylinderGeometry(0.05, 0.05, 0.03, 10), glow, 0, 1.27, -0.155);
+    core.rotation.x = Math.PI / 2;
+    // backpack + tanks
+    part(up, new THREE.BoxGeometry(0.3, 0.32, 0.13), dark, 0, 1.24, 0.19);
+    part(up, new THREE.CylinderGeometry(0.045, 0.045, 0.26, 8), suit, -0.09, 1.26, 0.26);
+    part(up, new THREE.CylinderGeometry(0.045, 0.045, 0.26, 8), suit, 0.09, 1.26, 0.26);
+    // shoulder balls
+    part(up, new THREE.SphereGeometry(0.1, 12, 8), shell, -0.27, 1.38, 0);
+    part(up, new THREE.SphereGeometry(0.1, 12, 8), shell, 0.27, 1.38, 0);
+
+    // left arm swings with the stride
+    this.armL = new THREE.Group();
+    this.armL.position.set(-0.28, 1.36, 0);
+    part(this.armL, new THREE.CapsuleGeometry(0.06, 0.42, 4, 8), suit, 0, -0.24, 0);
+    part(this.armL, new THREE.SphereGeometry(0.065, 10, 8), dark, 0, -0.5, 0);
+    up.add(this.armL);
+
+    // right arm holds the rifle and pitches with aim
+    this.armR = new THREE.Group();
+    this.armR.position.set(0.28, 1.36, 0);
+    part(this.armR, new THREE.CapsuleGeometry(0.06, 0.18, 4, 8), suit, 0, -0.12, -0.02);
+    const forearm = part(this.armR, new THREE.CapsuleGeometry(0.055, 0.22, 4, 8), suit, 0, -0.26, -0.17);
+    forearm.rotation.x = Math.PI / 2;
+    part(this.armR, new THREE.SphereGeometry(0.06, 10, 8), dark, 0, -0.26, -0.31);
+    const gun = new THREE.Group();
+    gun.position.set(0, -0.26, -0.3);
+    part(gun, new THREE.BoxGeometry(0.07, 0.11, 0.4), dark, 0, 0, -0.05);
+    const barrel = part(gun, new THREE.CylinderGeometry(0.025, 0.025, 0.24, 10), shell, 0, 0.015, -0.34);
+    barrel.rotation.x = Math.PI / 2;
+    part(gun, new THREE.SphereGeometry(0.02, 8, 6), glow, 0, 0.015, -0.47);
+    part(gun, new THREE.BoxGeometry(0.05, 0.12, 0.08), suit, 0, -0.1, 0.03);
+    part(gun, new THREE.BoxGeometry(0.06, 0.09, 0.12), suit, 0, -0.015, 0.18);
+    this.armR.add(gun);
+    up.add(this.armR);
+
+    // helmet head: shell sphere, dark visor band, accent crest + antenna
+    this.head = new THREE.Group();
+    this.head.position.set(0, 1.6, 0);
+    const dome = part(this.head, new THREE.SphereGeometry(0.185, 16, 12), shell, 0, 0.02, 0);
+    dome.scale.set(1, 1.05, 1.02);
+    const glass = part(this.head, new THREE.SphereGeometry(0.16, 14, 10), visor, 0, 0.01, -0.07);
+    glass.scale.set(1, 0.62, 0.82);
+    part(this.head, new THREE.BoxGeometry(0.03, 0.02, 0.3), glow, 0, 0.21, 0);
+    part(this.head, new THREE.CylinderGeometry(0.05, 0.05, 0.04, 10), dark, -0.185, 0.01, 0).rotation.z = Math.PI / 2;
+    part(this.head, new THREE.CylinderGeometry(0.05, 0.05, 0.04, 10), dark, 0.185, 0.01, 0).rotation.z = Math.PI / 2;
+    part(this.head, new THREE.CylinderGeometry(0.008, 0.008, 0.16, 6), dark, 0.17, 0.18, 0.05);
+    part(this.head, new THREE.SphereGeometry(0.02, 8, 6), glow, 0.17, 0.27, 0.05);
+    up.add(this.head);
+
     this.tag = makeNameSprite(name, this.cfg.accent);
-    this.tag.position.y = 2.06;
-    g.add(this.legL, this.legR, this.torso, this.head, this.gun, this.tag);
-    for (const m of [this.legL, this.legR, this.torso, this.head, this.gun]) m.castShadow = true;
+    this.tag.position.y = 2.08;
+    g.add(this.tag);
+
     g.visible = false;
     scene.add(g);
     this.group = g;
@@ -177,19 +260,24 @@ class RemoteAvatar {
     g.position.set(this.x, this.y, this.z);
     g.rotation.y = this.yaw;
     g.visible = this.alive;
-    // crouch: sink torso/head
-    const sink = this.crouchV * 0.42;
-    this.torso.position.y = 1.09 - sink;
-    this.head.position.y = 1.62 - sink;
-    this.gun.position.y = 1.32 - sink;
-    this.gun.rotation.x = this.pitch * 0.8;
-    this.head.rotation.x = this.pitch * 0.55;
-    // leg swing while moving (anim bit 1 = moving)
+    this._t += dt;
+
+    // walk cycle weight eases in/out so stops don't freeze mid-stride
     const moving = b1.anim & 1;
-    this._walkPhase += dt * (moving ? 11 : 0);
-    const sw = moving ? Math.sin(this._walkPhase) * 0.5 : 0;
+    this._moveK += ((moving ? 1 : 0) - this._moveK) * Math.min(1, dt * 10);
+    const wk = this._moveK;
+    this._walkPhase += dt * 11 * wk;
+    const sw = Math.sin(this._walkPhase) * 0.55 * wk;
     this.legL.rotation.x = sw;
     this.legR.rotation.x = -sw;
+    this.armL.rotation.x = -sw * 0.6;
+
+    // crouch sink + run bob + idle breath, all on the upper body group
+    const sink = this.crouchV * 0.42;
+    this.upper.position.y = -sink - Math.abs(Math.cos(this._walkPhase)) * 0.025 * wk + Math.sin(this._t * 1.8) * 0.006 * (1 - wk);
+    this.upper.rotation.x = 0.06 * wk; // slight forward lean at speed
+    this.armR.rotation.x = this.pitch * 0.85;
+    this.head.rotation.x = this.pitch * 0.55;
   }
 
   headPos() {
@@ -197,7 +285,7 @@ class RemoteAvatar {
   }
 
   muzzlePos(out) {
-    out.set(0.22, 1.32 - this.crouchV * 0.42, -0.6);
+    out.set(0.28, 1.1 - this.crouchV * 0.42, -0.77);
     out.applyAxisAngle(THREE.Object3D.DEFAULT_UP, this.yaw);
     out.x += this.x;
     out.y += this.y;
@@ -228,6 +316,12 @@ class RemoteAvatar {
 
   dispose(scene) {
     scene.remove(this.group);
+    this.group.traverse((o) => {
+      if (o.isMesh) {
+        o.geometry.dispose();
+        if (!o.material.userData.shared) o.material.dispose();
+      }
+    });
     this.tag.material.map.dispose();
     this.tag.material.dispose();
   }

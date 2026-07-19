@@ -101,7 +101,8 @@ function spawnPoint(room, forId) {
       best = { x, z };
     }
   }
-  return { x: best.x, z: best.z, yaw: Math.random() * Math.PI * 2 };
+  // yaw faces the arena center (client forward is (-sin, -cos))
+  return { x: best.x, z: best.z, yaw: Math.atan2(best.x, best.z) };
 }
 
 function broadcast(room, msg, exceptId) {
@@ -210,9 +211,16 @@ wss.on("connection", (ws) => {
       player.hp = 100;
       player.shield = 50;
       r.players.set(player.id, player);
+      // hand out a spawn away from everyone already in the room — without
+      // this every client would use the map's single default spawn point
+      const sp = spawnPoint(r, player.id);
+      player.x = sp.x;
+      player.z = sp.z;
+      player.yaw = sp.yaw;
+      player.protectUntil = Date.now() + 2000;
       ws.send(JSON.stringify({
         t: "joined", id: player.id, room: r.code, map: r.map, seed: r.seed,
-        scores: roster(r),
+        scores: roster(r), spawn: sp,
       }));
       broadcast(r, { t: "join", id: player.id, name: player.name, scores: roster(r) }, player.id);
       return;
@@ -247,11 +255,17 @@ setInterval(() => {
     if (room.state === "over" && now >= room.restartAt) {
       room.state = "playing";
       room.seed = (Math.random() * 2 ** 31) | 0;
+      const spawns = {};
       for (const p of room.players.values()) {
         p.kills = 0; p.deaths = 0; p.hp = 100; p.shield = 50;
         p.protectUntil = now + 2000;
+        const sp = spawnPoint(room, p.id);
+        p.x = sp.x;
+        p.z = sp.z;
+        p.yaw = sp.yaw;
+        spawns[p.id] = sp;
       }
-      broadcast(room, { t: "restart", seed: room.seed, map: room.map, scores: roster(room) });
+      broadcast(room, { t: "restart", seed: room.seed, map: room.map, scores: roster(room), spawns });
     }
     // snapshot: [id, x, y, z, yaw, pitch, crouch, anim, weapon, hp] per player
     const snap = [];

@@ -104,6 +104,14 @@ try {
   if (remotesB !== 1) errors.push("B remote count " + remotesB);
   console.log("both joined, shared seed:", seedA);
 
+  // players must NOT spawn on the same spot (server assigns spread spawns)
+  const spawnPos = async (p) => p.evaluate(() => ({ x: window.__SOL.session.player.x, z: window.__SOL.session.player.z }));
+  const pa0 = await spawnPos(A);
+  const pb0 = await spawnPos(B);
+  const sep0 = Math.hypot(pa0.x - pb0.x, pa0.z - pb0.z);
+  console.log("join spawn separation:", sep0.toFixed(2) + "m");
+  if (sep0 < 3) errors.push("JOIN SPAWNS TOO CLOSE: " + sep0.toFixed(2) + "m");
+
   // ---- snapshots flow: A moves, B's remote avatar must track it ----
   await A.bringToFront();
   await A.keyboard.down("KeyW");
@@ -124,6 +132,29 @@ try {
   }
   await shot(A, "02-A-view");
   await shot(B, "03-B-sees-A");
+
+  // stand B right in front of A's avatar for a close look at the rig
+  await B.evaluate((id) => {
+    const s = window.__SOL.session;
+    const r = s.remotes.get(id);
+    const p = s.player;
+    // sweep placements around the avatar, front-most first
+    outer: for (const off of [0, 0.6, -0.6, 1.2, -1.2, 2.2, -2.2, Math.PI]) {
+      for (const d of [2.4, 3.0, 1.8]) {
+        const ang = r.yaw + off;
+        const nx = r.x - Math.sin(ang) * d, nz = r.z - Math.cos(ang) * d;
+        if (s.map.nav.isOpenWorld(nx, nz)) {
+          p.x = nx;
+          p.z = nz;
+          break outer;
+        }
+      }
+    }
+    p.yaw = Math.atan2(-(r.x - p.x), -(r.z - p.z));
+    p.pitch = 0;
+  }, aId);
+  await sleep(450);
+  await shot(B, "03b-avatar-closeup");
 
   // ---- remote fire + ult visuals reach the other client ----
   await A.evaluate(() => {
@@ -183,6 +214,11 @@ try {
   if (seedA2 !== seedB2) errors.push("RESTART SEED MISMATCH");
   if (seedA2 === seedA) errors.push("RESTART DID NOT RESEED");
   console.log("auto-restart OK, new seed:", seedA2);
+  const pa1 = await spawnPos(A);
+  const pb1 = await spawnPos(B);
+  const sep1 = Math.hypot(pa1.x - pb1.x, pa1.z - pb1.z);
+  console.log("restart spawn separation:", sep1.toFixed(2) + "m");
+  if (sep1 < 3) errors.push("RESTART SPAWNS TOO CLOSE: " + sep1.toFixed(2) + "m");
   await sleep(700);
   await shot(A, "09-A-rematch");
 
